@@ -151,4 +151,3 @@ Suggested branch names: `feature/crowd-dashboard`, `feature/parking`, and `docs/
 - Historical trends and forecasts are limited by the amount and quality of stored readings.
 - Local alerts do not guarantee delivery while the app is closed.
 - Parking occupancy and number-plate recognition are not claimed as complete until the module is implemented and tested.
-
