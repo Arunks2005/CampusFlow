@@ -28,6 +28,7 @@ migrate_working_dir/
 **/ios/Flutter/.last_build_id
 .dart_tool/
 .venv-sensor/
+.venv-parking/
 .venv/
 venv/
 node_modules/
@@ -81,3 +82,4 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+

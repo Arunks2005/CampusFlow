@@ -1,0 +1,7 @@
+# Separate from the people-count demo in requirements-sensor.txt.
+opencv-python>=4.10,<5
+ultralytics==8.4.150
+rapidocr>=3.10.0,<4
+onnxruntime>=1.19,<2
+huggingface-hub>=0.27,<2
+

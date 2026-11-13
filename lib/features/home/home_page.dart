@@ -9,13 +9,17 @@ import '../../widgets/app_logo.dart';
 import 'campus_data.dart';
 import 'sheets.dart';
 import 'zone_detail_page.dart';
+import 'alerts_page.dart';
+import 'planner_page.dart';
 
-enum _PlaceFilter { all, cafeteria, lifts, favourites }
+enum PlaceFilter { all, cafeteria, lifts, favourites }
 
 enum _SortMode { recommended, shortestWait, leastBusy, name }
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  const HomePage({super.key, this.initialFilter = PlaceFilter.all});
+
+  final PlaceFilter initialFilter;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -32,7 +36,7 @@ class _HomePageState extends State<HomePage> {
   StreamSubscription<List<Map<String, dynamic>>>? _liveSubscription;
   Timer? _ageTimer;
   Timer? _livePollTimer;
-  _PlaceFilter _filter = _PlaceFilter.all;
+  late PlaceFilter _filter = widget.initialFilter;
   _SortMode _sort = _SortMode.recommended;
   String _query = '';
   bool _loading = true;
@@ -183,10 +187,10 @@ class _HomePageState extends State<HomePage> {
     final query = _query.trim().toLowerCase();
     final result = _zones.where((zone) {
       final typeMatches = switch (_filter) {
-        _PlaceFilter.all => true,
-        _PlaceFilter.cafeteria => zone.isCafeteria,
-        _PlaceFilter.lifts => zone.type == 'lift',
-        _PlaceFilter.favourites => _favourites.contains(zone.id),
+        PlaceFilter.all => true,
+        PlaceFilter.cafeteria => zone.isCafeteria,
+        PlaceFilter.lifts => zone.type == 'lift',
+        PlaceFilter.favourites => _favourites.contains(zone.id),
       };
       final textMatches =
           query.isEmpty ||
@@ -251,6 +255,20 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: 'Planner',
+            icon: const Icon(Icons.event_available_outlined),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const PlannerPage()),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Alerts',
+            icon: const Icon(Icons.notifications_none_rounded),
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute<void>(builder: (_) => const AlertsPage())),
+          ),
           PopupMenuButton<_SortMode>(
             tooltip: 'Sort places',
             initialValue: _sort,
@@ -535,16 +553,16 @@ class _SectionTitle extends StatelessWidget {
 
 class _FilterRow extends StatelessWidget {
   const _FilterRow({required this.selected, required this.onSelect});
-  final _PlaceFilter selected;
-  final ValueChanged<_PlaceFilter> onSelect;
+  final PlaceFilter selected;
+  final ValueChanged<PlaceFilter> onSelect;
 
   @override
   Widget build(BuildContext context) {
     const values = [
-      (_PlaceFilter.all, 'All'),
-      (_PlaceFilter.cafeteria, 'Cafeteria'),
-      (_PlaceFilter.lifts, 'Lifts'),
-      (_PlaceFilter.favourites, 'Favourites'),
+      (PlaceFilter.all, 'All'),
+      (PlaceFilter.cafeteria, 'Cafeteria'),
+      (PlaceFilter.lifts, 'Lifts'),
+      (PlaceFilter.favourites, 'Favourites'),
     ];
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -1113,3 +1131,4 @@ String _ageLabel(DateTime updatedAt) {
   if (minutes < 60) return '${minutes}m ago';
   return '${minutes ~/ 60}h ago';
 }
+

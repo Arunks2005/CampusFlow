@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../app_theme.dart';
 
-/// Compact CampusFlow mark: a flowing route joining three campus points.
+/// CampusFlow mark: a campus location pin with a parking-ready route marker.
 class AppLogo extends StatelessWidget {
   const AppLogo({super.key, this.size = 96});
 
@@ -41,53 +41,86 @@ class _FlowMarkPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final scale = size.shortestSide;
-    final route = Path()
-      ..moveTo(size.width * .23, size.height * .68)
+    final pin = Path()
+      ..moveTo(size.width * .5, size.height * .82)
       ..cubicTo(
-        size.width * .37,
-        size.height * .68,
-        size.width * .35,
-        size.height * .34,
-        size.width * .51,
-        size.height * .34,
+        size.width * .42,
+        size.height * .70,
+        size.width * .22,
+        size.height * .49,
+        size.width * .22,
+        size.height * .37,
       )
       ..cubicTo(
-        size.width * .68,
-        size.height * .34,
+        size.width * .22,
+        size.height * .19,
+        size.width * .35,
+        size.height * .10,
+        size.width * .5,
+        size.height * .10,
+      )
+      ..cubicTo(
+        size.width * .65,
+        size.height * .10,
+        size.width * .78,
+        size.height * .19,
+        size.width * .78,
+        size.height * .37,
+      )
+      ..cubicTo(
+        size.width * .78,
+        size.height * .49,
+        size.width * .58,
+        size.height * .70,
+        size.width * .5,
+        size.height * .82,
+      )
+      ..close();
+    canvas.drawPath(pin, Paint()..color = Colors.white.withValues(alpha: .96));
+    canvas.drawCircle(
+      Offset(size.width * .5, size.height * .37),
+      scale * .19,
+      Paint()..color = const Color(0xFF147D7A),
+    );
+
+    final p = TextPainter(
+      text: TextSpan(
+        text: 'P',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: scale * .29,
+          fontWeight: FontWeight.w900,
+          height: 1,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    p.paint(
+      canvas,
+      Offset(size.width * .5 - p.width / 2, size.height * .37 - p.height / 2),
+    );
+
+    final route = Path()
+      ..moveTo(size.width * .20, size.height * .83)
+      ..cubicTo(
+        size.width * .34,
+        size.height * .73,
         size.width * .66,
-        size.height * .67,
+        size.height * .73,
         size.width * .80,
-        size.height * .67,
+        size.height * .83,
       );
-
-    final routePaint = Paint()
-      ..color = Colors.white.withValues(alpha: .95)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = scale * .075
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    canvas.drawPath(route, routePaint);
-
-    final points = <Offset>[
-      Offset(size.width * .23, size.height * .68),
-      Offset(size.width * .51, size.height * .34),
-      Offset(size.width * .80, size.height * .67),
-    ];
-    final nodePaint = Paint()..color = Colors.white;
-    for (var index = 0; index < points.length; index++) {
-      canvas.drawCircle(
-        points[index],
-        scale * (index == 1 ? .105 : .09),
-        nodePaint,
-      );
-      canvas.drawCircle(
-        points[index],
-        scale * (index == 1 ? .045 : .036),
-        Paint()..color = const Color(0xFF167F87),
-      );
-    }
+    canvas.drawPath(
+      route,
+      Paint()
+        ..color = Colors.white.withValues(alpha: .9)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = scale * .055
+        ..strokeCap = StrokeCap.round,
+    );
   }
 
   @override
   bool shouldRepaint(covariant _FlowMarkPainter oldDelegate) => false;
 }
+

@@ -62,10 +62,7 @@ class AuthService {
     required String password,
   }) async {
     try {
-      await _auth.signInWithPassword(
-        email: email.trim(),
-        password: password,
-      );
+      await _auth.signInWithPassword(email: email.trim(), password: password);
     } catch (error) {
       throw AuthFailure(friendlyMessage(error));
     }
@@ -78,6 +75,7 @@ class AuthService {
       final opened = await _auth.signInWithOAuth(
         OAuthProvider.google,
         redirectTo: redirectUrl,
+        authScreenLaunchMode: LaunchMode.externalApplication,
       );
 
       if (!opened) {
@@ -94,10 +92,7 @@ class AuthService {
 
   static Future<void> sendPasswordReset(String email) async {
     try {
-      await _auth.resetPasswordForEmail(
-        email.trim(),
-        redirectTo: redirectUrl,
-      );
+      await _auth.resetPasswordForEmail(email.trim(), redirectTo: redirectUrl);
     } catch (error) {
       throw AuthFailure(friendlyMessage(error));
     }
@@ -117,9 +112,7 @@ class AuthService {
 
   static Future<void> updatePassword(String newPassword) async {
     try {
-      await _auth.updateUser(
-        UserAttributes(password: newPassword),
-      );
+      await _auth.updateUser(UserAttributes(password: newPassword));
     } catch (error) {
       throw AuthFailure(friendlyMessage(error));
     }
@@ -139,8 +132,7 @@ class AuthService {
     final raw = error is AuthException ? error.message : error.toString();
     final text = raw.toLowerCase();
 
-    if (text.contains('unsupported provider') &&
-        text.contains('not enabled')) {
+    if (text.contains('unsupported provider') && text.contains('not enabled')) {
       return 'Google sign-in is not enabled for this Supabase project. '
           'Enable the Google provider in Supabase Authentication settings.';
     }
@@ -200,3 +192,4 @@ class AuthService {
     return 'Something went wrong. Please try again.';
   }
 }
+
