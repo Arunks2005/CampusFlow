@@ -142,13 +142,14 @@ The Flutter app already listens for live `zone_live` data and refreshes a REST s
 
    It processes at most six frames per second to limit CPU use and writes status/errors to `tools\sensor_simulator.log`. It sends its first count after its first detection, then sends updates every 15 seconds. Verify fresh timestamps in `zone_live` and the Home tab, then stop it with **Ctrl+C**. Adjust `CAMPUSFLOW_INFERENCE_FPS` in `.env.sensor` between 1 and 30 if needed; more frames can use more CPU and will not fix people hidden behind others.
 
-4. Open **Task Scheduler → Create Task**. Name it `CampusFlow Sensor`. Set the trigger to **At log on** for your Windows account. In **Actions → Start a program**, set:
+4. Register and start the hidden scheduled task for your current Windows account:
 
-   - Program: `<project folder>\.venv-sensor\Scripts\pythonw.exe`
-   - Arguments: `"<project folder>\tools\sensor_simulator.py" --headless`
-   - Start in: `<project folder>`
+   ```powershell
+   Set-ExecutionPolicy -Scope Process Bypass
+   .\tools\register_sensor_task.ps1
+   ```
 
-   Choose **Run only when user is logged on** so Windows can grant the desktop camera access. In **Settings**, enable restarting the task if it fails and select **Do not start a new instance** if it is already running. Click **Run** once and check `tools\sensor_simulator.log`.
+   It starts at sign-in, restarts after a failure, and avoids starting a duplicate scanner. It runs as the signed-in user so Windows camera permissions apply. Check `tools\sensor_simulator.log` for status. To remove the task later, run `Unregister-ScheduledTask -TaskName 'CampusFlow Sensor' -Confirm:$false`.
 
 5. Sign in to Windows with the laptop awake and camera permissions enabled. Open CampusFlow on your phone while both devices have internet. Home should show a fresh timestamp; the existing offline badge appears if updates stop for more than three minutes.
 
