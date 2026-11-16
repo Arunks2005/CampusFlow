@@ -42,6 +42,7 @@ Ultralytics/
 .env
 .env.*
 !.env.example
+!.env.sensor.example
 *.local
 android/local.properties
 android/key.properties

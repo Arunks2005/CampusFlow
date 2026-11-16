@@ -128,7 +128,33 @@ The simulator uses a webcam connected to the computer running the script. By def
 
 The script reports successful database updates in its terminal. Compare the reported zone/count and timestamp with the corresponding `zone_live` record and app card. Press **Q** in the preview or **Ctrl+C** in the terminal to stop.
 
-The webcam prototype is an estimate, not an accuracy guarantee. Results depend on camera placement, lighting, resolution, distance, occlusion, and the detector model. It is not suitable for safety-critical occupancy decisions. The demo's virtual image halves are not physical zone sensors. Sensor tokens were previously embedded in the local simulator source and have been removed from this repository. If those values were ever shared outside your private development setup or reused elsewhere, rotate them in Supabase; otherwise provide the configured raw node tokens through local environment variables. The script no longer contains sensor tokens.
+### Start the laptop camera simulator automatically (no open terminal)
+
+The Flutter app already listens for live `zone_live` data and refreshes a REST snapshot every 10 seconds. Since your camera is attached to the laptop and CampusFlow is on your phone, the laptop must run the scanner separately; the phone cannot directly switch on another computer's webcam. To avoid opening a terminal each time, set the scanner to start at your Windows sign-in. The camera will then run while you are signed in, even when the phone app is closed, and the app will show the newest Supabase values when opened.
+
+1. Copy `.env.sensor.example` to `.env.sensor` in the project root and fill in the Supabase project URL, publishable key, and the two raw node tokens. Keep `.env.sensor` private; it is ignored by Git. Use the same Python virtual environment and dependencies as the interactive simulator.
+2. In **Windows Settings → Privacy & security → Camera**, turn on **Camera access** and **Let desktop apps access your camera**. Close Camera/Zoom/Teams if they are using the webcam.
+3. Test the hidden mode once in PowerShell:
+
+   ```powershell
+   .\.venv-sensor\Scripts\python.exe .\tools\sensor_simulator.py --headless
+   ```
+
+   It writes status and errors to `tools\sensor_simulator.log`. Verify fresh timestamps in `zone_live` and the Home tab, then stop it with **Ctrl+C**.
+
+4. Open **Task Scheduler → Create Task**. Name it `CampusFlow Sensor`. Set the trigger to **At log on** for your Windows account. In **Actions → Start a program**, set:
+
+   - Program: `<project folder>\.venv-sensor\Scripts\pythonw.exe`
+   - Arguments: `"<project folder>\tools\sensor_simulator.py" --headless`
+   - Start in: `<project folder>`
+
+   Choose **Run only when user is logged on** so Windows can grant the desktop camera access. In **Settings**, enable restarting the task if it fails and select **Do not start a new instance** if it is already running. Click **Run** once and check `tools\sensor_simulator.log`.
+
+5. Sign in to Windows with the laptop awake and camera permissions enabled. Open CampusFlow on your phone while both devices have internet. Home should show a fresh timestamp; the existing offline badge appears if updates stop for more than three minutes.
+
+This mode makes the scanner automatic at Windows sign-in; it does **not** turn the laptop camera on only when you open the phone app. For app-open-only control, an authenticated laptop companion service and a same-network Start/Stop control would also be required. Do not expose an unauthenticated camera-control endpoint to Wi-Fi. If you instead want the Android phone camera, that is a different implementation: Flutter must request the phone's camera permission, show its camera state/preview, and run the detector on the phone. Android camera access is permission-gated and has foreground-service restrictions; it cannot silently activate the laptop camera.
+
+The webcam prototype is an estimate, not an accuracy guarantee. Results depend on camera placement, lighting, resolution, distance, occlusion, and the detector model. It is not suitable for safety-critical occupancy decisions. The demo's virtual image halves are not physical zone sensors. Sensor tokens were previously embedded in the local simulator source and have been removed from this repository. If those values were ever shared outside your private development setup or reused elsewhere, rotate them in Supabase; otherwise provide the configured raw node tokens through local environment variables or the ignored `.env.sensor` file. The script no longer contains sensor tokens.
 
 ## Supabase setup
 

@@ -9,18 +9,23 @@ Required environment variables:
   CAMPUSFLOW_SUPABASE_KEY (publishable key or legacy anon key)
   CAMPUSFLOW_NODE_TOKEN_C1 and CAMPUSFLOW_NODE_TOKEN_C2 (sensor credentials)
 
+The same settings may be stored in a local `.env.sensor` file at the project root.
+Start with `.env.sensor.example`; never commit the real `.env.sensor` file.
+
 Optional:
   CAMPUSFLOW_CAMERA_INDEX (default: 0)
   CAMPUSFLOW_CAMERA_ZONES (default: cafeteria_c1,cafeteria_c2)
   CAMPUSFLOW_YOLO_MODEL (default: yolo26s.pt)
   CAMPUSFLOW_IMAGE_SIZE (default: 768)
   CAMPUSFLOW_DETECTION_CONF (default: 0.20)
+  CAMPUSFLOW_HEADLESS=1 (run without a camera preview window)
 """
 
 from __future__ import annotations
 
 import json
 import os
+import shutil
 import statistics
 import sys
 import threading
@@ -44,6 +49,44 @@ SEND_INTERVAL_SECONDS = 15
 REQUESTED_FRAME_WIDTH = 1280
 REQUESTED_FRAME_HEIGHT = 720
 SMOOTHING_SAMPLES = 5
+MAX_LOG_BYTES = 2 * 1024 * 1024
+
+
+def load_local_environment() -> None:
+    """Load optional project-local settings; existing process variables win."""
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    env_file = os.path.join(project_root, ".env.sensor")
+    if not os.path.isfile(env_file):
+        return
+    with open(env_file, encoding="utf-8-sig") as settings:
+        for raw_line in settings:
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            key = key.strip()
+            value = value.strip().strip('"').strip("'")
+            if key and key not in os.environ:
+                os.environ[key] = value
+
+
+def is_headless() -> bool:
+    return os.environ.get("CAMPUSFLOW_HEADLESS", "").strip().lower() in {
+        "1", "true", "yes", "on"
+    } or "--headless" in sys.argv
+
+
+def configure_headless_log() -> None:
+    """Redirect pythonw output to a small rotating local log file."""
+    log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sensor_simulator.log")
+    backup_path = f"{log_path}.1"
+    if os.path.isfile(log_path) and os.path.getsize(log_path) >= MAX_LOG_BYTES:
+        if os.path.exists(backup_path):
+            os.remove(backup_path)
+        shutil.move(log_path, backup_path)
+    stream = open(log_path, "a", encoding="utf-8", buffering=1)
+    sys.stdout = stream
+    sys.stderr = stream
 
 
 def request_json(base_url: str, api_key: str, path: str, *, method: str = "GET", body=None):
@@ -247,6 +290,8 @@ def upload_loop(base_url: str, api_key: str, zones: list[dict], shared: dict,
 
 
 def main() -> int:
+    load_local_environment()
+    headless = is_headless()
     base_url = os.environ.get("CAMPUSFLOW_SUPABASE_URL", "").strip()
     api_key = os.environ.get("CAMPUSFLOW_SUPABASE_KEY", "").strip()
     if not base_url or not api_key:
@@ -382,20 +427,29 @@ def main() -> int:
         for worker in workers:
             worker.start()
 
-        cv2.namedWindow("CampusFlow two-zone YOLO person simulator", cv2.WINDOW_NORMAL)
-        cv2.resizeWindow("CampusFlow two-zone YOLO person simulator", 1000, 650)
+        if not headless:
+            cv2.namedWindow("CampusFlow two-zone YOLO person simulator", cv2.WINDOW_NORMAL)
+            cv2.resizeWindow("CampusFlow two-zone YOLO person simulator", 1000, 650)
+        else:
+            print("Headless mode: no preview window; status is written to tools/sensor_simulator.log.")
         try:
             while not stop.is_set():
                 with lock:
-                    frame = shared["frame"].copy() if shared["frame"] is not None else None
-                    boxes = shared["boxes"].copy()
+                    frame = (
+                        shared["frame"].copy()
+                        if not headless and shared["frame"] is not None
+                        else None
+                    )
+                    boxes = shared["boxes"].copy() if not headless else []
                     counts = shared["counts"].copy()
-                    detected_at = shared["detected_at"]
                     camera_error = shared["camera_error"]
                     detection_error = shared["detection_error"]
                 if camera_error or detection_error:
                     print(camera_error or f"Detector stopped: {detection_error}", file=sys.stderr)
                     break
+                if headless:
+                    stop.wait(0.2)
+                    continue
                 if frame is not None:
                     frame_height, frame_width = frame.shape[:2]
                     split_x = frame_width // 2
@@ -423,7 +477,8 @@ def main() -> int:
             for worker in workers:
                 worker.join(timeout=1.0)
             camera.release()
-            cv2.destroyAllWindows()
+            if not headless:
+                cv2.destroyAllWindows()
 
         print("Webcam simulator stopped.")
         return 0
@@ -446,4 +501,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    load_local_environment()
+    if is_headless():
+        configure_headless_log()
     raise SystemExit(main())
+
