@@ -140,7 +140,7 @@ The Flutter app already listens for live `zone_live` data and refreshes a REST s
    .\.venv-sensor\Scripts\python.exe .\tools\sensor_simulator.py --headless
    ```
 
-   It writes status and errors to `tools\sensor_simulator.log`. Verify fresh timestamps in `zone_live` and the Home tab, then stop it with **Ctrl+C**.
+   It processes at most six frames per second to limit CPU use and writes status/errors to `tools\sensor_simulator.log`. It sends its first count after its first detection, then sends updates every 15 seconds. Verify fresh timestamps in `zone_live` and the Home tab, then stop it with **Ctrl+C**. Adjust `CAMPUSFLOW_INFERENCE_FPS` in `.env.sensor` between 1 and 30 if needed; more frames can use more CPU and will not fix people hidden behind others.
 
 4. Open **Task Scheduler → Create Task**. Name it `CampusFlow Sensor`. Set the trigger to **At log on** for your Windows account. In **Actions → Start a program**, set:
 

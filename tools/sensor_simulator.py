@@ -18,6 +18,7 @@ Optional:
   CAMPUSFLOW_YOLO_MODEL (default: yolo26s.pt)
   CAMPUSFLOW_IMAGE_SIZE (default: 768)
   CAMPUSFLOW_DETECTION_CONF (default: 0.20)
+  CAMPUSFLOW_INFERENCE_FPS (default: 6)
   CAMPUSFLOW_HEADLESS=1 (run without a camera preview window)
 """
 
@@ -212,12 +213,17 @@ def capture_loop(camera, shared: dict, lock: threading.Lock, stop: threading.Eve
 
 
 def detection_loop(detector, shared: dict, lock: threading.Lock, stop: threading.Event,
-                  image_size: int, detection_conf: float):
+                  image_size: int, detection_conf: float, inference_fps: float):
     """Run inference off the preview thread and always process the newest frame."""
     recent_counts = [deque(maxlen=SMOOTHING_SAMPLES) for _ in range(2)]
     smoothed_counts = [0, 0]
     last_seq = -1
+    next_inference_at = 0.0
+    inference_interval = 1.0 / inference_fps
     while not stop.is_set():
+        if time.monotonic() < next_inference_at:
+            stop.wait(0.005)
+            continue
         with lock:
             seq = shared["frame_seq"]
             frame = shared["frame"]
@@ -227,6 +233,7 @@ def detection_loop(detector, shared: dict, lock: threading.Lock, stop: threading
             stop.wait(0.005)
             continue
         last_seq = seq
+        next_inference_at = time.monotonic() + inference_interval
         try:
             frame_height, frame_width = frame.shape[:2]
             split_x = frame_width // 2
@@ -273,9 +280,13 @@ def detection_loop(detector, shared: dict, lock: threading.Lock, stop: threading
 def upload_loop(base_url: str, api_key: str, zones: list[dict], shared: dict,
                 lock: threading.Lock, stop: threading.Event):
     """Upload counts away from the UI loop so network delays do not freeze video."""
-    while not stop.wait(SEND_INTERVAL_SECONDS):
+    while not stop.is_set():
         with lock:
             counts = shared["counts"].copy()
+            detected_at = shared["detected_at"]
+        if not detected_at:
+            stop.wait(0.25)
+            continue
         for index, zone in enumerate(zones):
             try:
                 received_count, updated_at = send_reading(
@@ -287,6 +298,8 @@ def upload_loop(base_url: str, api_key: str, zones: list[dict], shared: dict,
                 )
             except Exception as error:
                 print(f"Supabase send failed for {zone['id']}: {error}", file=sys.stderr, flush=True)
+        if stop.wait(SEND_INTERVAL_SECONDS):
+            break
 
 
 def main() -> int:
@@ -363,10 +376,13 @@ def main() -> int:
             model_path = "yolo26s.pt"
         image_size = int(os.environ.get("CAMPUSFLOW_IMAGE_SIZE", "768"))
         detection_conf = float(os.environ.get("CAMPUSFLOW_DETECTION_CONF", "0.20"))
+        inference_fps = float(os.environ.get("CAMPUSFLOW_INFERENCE_FPS", "6"))
         if image_size < 640:
             raise ValueError("CAMPUSFLOW_IMAGE_SIZE must be at least 640.")
         if not 0.05 <= detection_conf <= 0.90:
             raise ValueError("CAMPUSFLOW_DETECTION_CONF must be between 0.05 and 0.90.")
+        if not 1 <= inference_fps <= 30:
+            raise ValueError("CAMPUSFLOW_INFERENCE_FPS must be between 1 and 30.")
         print(f"Loading YOLO person model: {model_path}", flush=True)
         try:
             detector = YOLO(model_path)
@@ -384,6 +400,7 @@ def main() -> int:
 
         print("Webcam YOLO person-count simulator started.")
         print(f"Detector: {model_path}, inference size: {image_size}, confidence: {detection_conf:.2f}")
+        print(f"Inference is capped at {inference_fps:g} frames per second to limit CPU load.")
         print(f"Camera resolution: {actual_width}x{actual_height} (requested 1280x720).")
         if actual_width < 1280 or actual_height < 720:
             print("This camera is providing below-HD video; small/distant people may be missed.")
@@ -415,7 +432,7 @@ def main() -> int:
             threading.Thread(target=capture_loop, args=(camera, shared, lock, stop), daemon=True),
             threading.Thread(
                 target=detection_loop,
-                args=(detector, shared, lock, stop, image_size, detection_conf),
+                args=(detector, shared, lock, stop, image_size, detection_conf, inference_fps),
                 daemon=True,
             ),
             threading.Thread(
