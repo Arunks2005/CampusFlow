@@ -2,9 +2,5 @@
 
 &#x20;
 
-Lift sensor plan: Draft proposal
-
-
-
-
+Lift sensor plan: VL53L1X + thermal array
 
